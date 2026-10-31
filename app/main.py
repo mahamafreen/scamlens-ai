@@ -57,12 +57,14 @@ class AICheckRequest(BaseModel):
     brand_key: Optional[str] = None
 
 
-@app.get("/", response_class=FileResponse)
+@app.get("/", response_class=HTMLResponse)
 async def serve_index():
     index_file = STATIC_DIR / "index.html"
     if not index_file.exists():
-        return HTMLResponse("<h1>ScamLens Shop Check</h1><p>Frontend static files not loaded yet.</p>")
-    return FileResponse(str(index_file))
+        index_file = BASE_DIR / "public" / "index.html"
+    if index_file.exists():
+        return HTMLResponse(content=index_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>ScamLens Shop Check</h1><p>Frontend static files not loaded yet.</p>")
 
 
 @app.get("/health")
