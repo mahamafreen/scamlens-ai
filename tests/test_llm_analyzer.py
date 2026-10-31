@@ -43,23 +43,26 @@ def test_extract_json_from_llm():
 
 
 @pytest.mark.anyio
-async def test_analyze_with_llm_success():
-    mock_choice = MagicMock()
-    mock_choice.message.content = """<think>Analysis done</think>
-    {
-      "product_name": "AirPods Pro 2",
-      "brand_claimed": "Apple",
-      "price_text": "Rs. 9,999",
-      "claims_official_store": true,
-      "red_flags": ["Price is unrealistically low (authentic is Rs 65k+)", "Urgency countdown timer"],
-      "missing_trust_info": ["No registered physical office in Pakistan"],
-      "summary": "High risk of counterfeit product. Authentic Apple AirPods cannot be sold for Rs 9,999."
-    }"""
-    mock_response = MagicMock()
-    mock_response.choices = [mock_choice]
+async def test_analyze_with_llm_native_success():
+    mock_resp = MagicMock()
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "message": {
+            "content": """<think>Thinking stripped</think>
+            {
+              "product_name": "AirPods Pro 2",
+              "brand_claimed": "Apple",
+              "price_text": "Rs. 9,999",
+              "claims_official_store": true,
+              "red_flags": ["Price is unrealistically low", "Urgency countdown"],
+              "missing_trust_info": ["No registered physical office"],
+              "summary": "High risk of counterfeit product."
+            }"""
+        }
+    }
 
-    with patch("openai.resources.chat.completions.AsyncCompletions.create", new_callable=AsyncMock) as mock_create:
-        mock_create.return_value = mock_response
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
         analysis = await analyze_with_llm(
             url="https://airpods-cheap.top",
             hostname="airpods-cheap.top",
@@ -72,11 +75,16 @@ async def test_analyze_with_llm_success():
         assert analysis["brand_claimed"] == "Apple"
         assert analysis["claims_official_store"] is True
         assert len(analysis["red_flags"]) >= 1
+        assert "elapsed_seconds" in analysis
+        # Verify think: False was passed in payload
+        called_json = mock_post.call_args.kwargs["json"]
+        assert called_json.get("think") is False
 
 
 @pytest.mark.anyio
 async def test_analyze_with_llm_model_offline_fallback():
-    with patch("openai.resources.chat.completions.AsyncCompletions.create", side_effect=Exception("Connection refused")):
+    with patch("httpx.AsyncClient.post", side_effect=Exception("Connection refused")), \
+         patch("openai.resources.chat.completions.AsyncCompletions.create", side_effect=Exception("Connection refused")):
         analysis = await analyze_with_llm(
             url="https://some-shop.com",
             hostname="some-shop.com",

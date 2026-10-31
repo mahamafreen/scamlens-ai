@@ -1,6 +1,8 @@
 import json
 import re
+import time
 from typing import Dict, Any, Optional, List
+import httpx
 from openai import AsyncOpenAI
 
 from app.config import (
@@ -56,22 +58,12 @@ async def analyze_with_llm(
     hostname: str,
     title: str,
     visible_text: str,
-    timeout_seconds: float = 12.0
+    timeout_seconds: float = 25.0
 ) -> Dict[str, Any]:
     """
     Calls Ollama LLM to extract product info, claims, and scam indicators.
-    Returns:
-        {
-            "ai_available": bool,
-            "ai_error": Optional[str],
-            "product_name": str,
-            "brand_claimed": str,
-            "price_text": str,
-            "claims_official_store": bool,
-            "red_flags": List[str],
-            "missing_trust_info": List[str],
-            "summary": str
-        }
+    Disables thinking mode (via Ollama native think:false or OpenAI extra_body) to run fast on CPU.
+    Strips remaining think blocks, enforces 25-second timeout, and measures execution time.
     """
     fallback_result: Dict[str, Any] = {
         "ai_available": False,
@@ -82,7 +74,8 @@ async def analyze_with_llm(
         "claims_official_store": False,
         "red_flags": [],
         "missing_trust_info": [],
-        "summary": "AI analysis unavailable (using rule-based evaluation)."
+        "summary": "AI analysis unavailable (using rule-based evaluation).",
+        "elapsed_seconds": 0.0
     }
 
     if not visible_text and not title:
@@ -110,45 +103,83 @@ Extract scam indicators and return ONLY valid JSON with these exact keys:
         "Explain in simple English (add Roman Urdu if page text is in Urdu). Strip hype."
     )
 
+    t0 = time.time()
+    raw_content = ""
+
+    # Strategy 1: Ollama native /api/chat with think: False (avoids CPU thinking loop)
+    native_url = OLLAMA_BASE_URL.rstrip("/").removesuffix("/v1") + "/api/chat"
     try:
-        client = AsyncOpenAI(
-            base_url=OLLAMA_BASE_URL,
-            api_key=OLLAMA_API_KEY,
-            timeout=timeout_seconds
-        )
+        async with httpx.AsyncClient(timeout=timeout_seconds) as http_client:
+            resp = await http_client.post(
+                native_url,
+                json={
+                    "model": OLLAMA_MODEL,
+                    "messages": [
+                        {"role": "system", "content": system_instruction},
+                        {"role": "user", "content": prompt}
+                    ],
+                    "stream": False,
+                    "think": False,
+                    "options": {
+                        "temperature": 0.0,
+                        "num_predict": 250
+                    }
+                }
+            )
+            if resp.status_code == 200:
+                resp_json = resp.json()
+                raw_content = resp_json.get("message", {}).get("content", "")
+    except Exception:
+        raw_content = ""
 
-        response = await client.chat.completions.create(
-            model=OLLAMA_MODEL,
-            messages=[
-                {"role": "system", "content": system_instruction},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.0,
-            max_tokens=250
-        )
+    # Strategy 2: Fallback to AsyncOpenAI client with extra_body={"think": False} if native call was empty
+    if not raw_content:
+        try:
+            client = AsyncOpenAI(
+                base_url=OLLAMA_BASE_URL,
+                api_key=OLLAMA_API_KEY,
+                timeout=timeout_seconds
+            )
 
-        raw_content = response.choices[0].message.content or ""
-        parsed_json = extract_json_from_llm(raw_content)
+            kwargs: Dict[str, Any] = {
+                "model": OLLAMA_MODEL,
+                "messages": [
+                    {"role": "system", "content": system_instruction},
+                    {"role": "user", "content": prompt}
+                ],
+                "temperature": 0.0,
+                "max_tokens": 250,
+                "extra_body": {"think": False}
+            }
 
-        if not parsed_json:
-            fallback_result["ai_error"] = "Model returned non-JSON response"
+            response = await client.chat.completions.create(**kwargs)
+            raw_content = response.choices[0].message.content or ""
+        except Exception as e:
+            elapsed = time.time() - t0
+            fallback_result["ai_error"] = f"LLM unavailable: {str(e)}"
+            fallback_result["elapsed_seconds"] = round(elapsed, 2)
             return fallback_result
 
-        return {
-            "ai_available": True,
-            "ai_error": None,
-            "product_name": str(parsed_json.get("product_name") or title or "").strip(),
-            "brand_claimed": str(parsed_json.get("brand_claimed") or "").strip(),
-            "price_text": str(parsed_json.get("price_text") or "").strip(),
-            "claims_official_store": bool(parsed_json.get("claims_official_store", False)),
-            "red_flags": [str(x) for x in parsed_json.get("red_flags", []) if x][:5],
-            "missing_trust_info": [str(x) for x in parsed_json.get("missing_trust_info", []) if x][:5],
-            "summary": str(parsed_json.get("summary") or "").strip()
-        }
+    elapsed = time.time() - t0
+    parsed_json = extract_json_from_llm(raw_content)
 
-    except Exception as e:
-        fallback_result["ai_error"] = f"LLM unavailable: {str(e)}"
+    if not parsed_json:
+        fallback_result["ai_error"] = "Model returned non-JSON response"
+        fallback_result["elapsed_seconds"] = round(elapsed, 2)
         return fallback_result
+
+    return {
+        "ai_available": True,
+        "ai_error": None,
+        "product_name": str(parsed_json.get("product_name") or title or "").strip(),
+        "brand_claimed": str(parsed_json.get("brand_claimed") or "").strip(),
+        "price_text": str(parsed_json.get("price_text") or "").strip(),
+        "claims_official_store": bool(parsed_json.get("claims_official_store", False)),
+        "red_flags": [str(x) for x in parsed_json.get("red_flags", []) if x][:5],
+        "missing_trust_info": [str(x) for x in parsed_json.get("missing_trust_info", []) if x][:5],
+        "summary": str(parsed_json.get("summary") or "").strip(),
+        "elapsed_seconds": round(elapsed, 2)
+    }
 
 
 def check_official_store_claim_mismatch(
@@ -194,7 +225,6 @@ def check_official_store_claim_mismatch(
             }
     else:
         # Brand not in brands.json, but claims official store on a third-party domain
-        # If brand name is not in domain at all
         if b_claimed_clean not in hostname_clean:
             return {
                 "id": "official_store_claim_unverified",
