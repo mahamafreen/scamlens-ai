@@ -247,7 +247,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((aiData) => {
         const llm = aiData.llm_analysis;
         if (llm.ai_available) {
-          aiStatusBadge.textContent = "Complete";
+          aiStatusBadge.textContent = llm.elapsed_seconds ? `Complete (${llm.elapsed_seconds}s)` : "Complete";
           aiStatusBadge.style.background = "rgba(16, 185, 129, 0.2)";
           aiStatusBadge.style.color = "#10b981";
           aiSummaryText.textContent = llm.summary || "AI analysis completed.";
@@ -346,3 +346,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 });
+
