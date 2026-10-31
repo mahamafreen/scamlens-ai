@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Daraz.pk",
+    "domain": "daraz.pk",
+    "url_template": "https://www.google.com/search?q={query}+site:daraz.pk"
+  },
+  {
+    "name": "PriceOye.pk",
+    "domain": "priceoye.pk",
+    "url_template": "https://www.google.com/search?q={query}+site:priceoye.pk"
+  },
+  {
+    "name": "Telemart.pk",
+    "domain": "telemart.pk",
+    "url_template": "https://www.google.com/search?q={query}+site:telemart.pk"
+  },
+  {
+    "name": "HomeShopping.pk",
+    "domain": "homeshopping.pk",
+    "url_template": "https://www.google.com/search?q={query}+site:homeshopping.pk"
+  }
+]

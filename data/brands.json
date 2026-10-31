@@ -1,0 +1,66 @@
+{
+  "daraz": {
+    "name": "Daraz",
+    "official_domains": ["daraz.pk", "daraz.com", "daraz.com.bd", "daraz.com.np", "daraz.lk"]
+  },
+  "priceoye": {
+    "name": "PriceOye",
+    "official_domains": ["priceoye.pk"]
+  },
+  "telemart": {
+    "name": "Telemart",
+    "official_domains": ["telemart.pk"]
+  },
+  "homeshopping": {
+    "name": "HomeShopping",
+    "official_domains": ["homeshopping.pk"]
+  },
+  "shophive": {
+    "name": "Shophive",
+    "official_domains": ["shophive.com"]
+  },
+  "mega": {
+    "name": "Mega.pk",
+    "official_domains": ["mega.pk"]
+  },
+  "apple": {
+    "name": "Apple",
+    "official_domains": ["apple.com"]
+  },
+  "samsung": {
+    "name": "Samsung",
+    "official_domains": ["samsung.com"]
+  },
+  "nike": {
+    "name": "Nike",
+    "official_domains": ["nike.com"]
+  },
+  "adidas": {
+    "name": "Adidas",
+    "official_domains": ["adidas.com", "adidas.pk"]
+  },
+  "xiaomi": {
+    "name": "Xiaomi",
+    "official_domains": ["mi.com", "mistore.pk", "xiaomi.com"]
+  },
+  "sony": {
+    "name": "Sony",
+    "official_domains": ["sony.com"]
+  },
+  "easypaisa": {
+    "name": "Easypaisa",
+    "official_domains": ["easypaisa.com.pk"]
+  },
+  "jazzcash": {
+    "name": "JazzCash",
+    "official_domains": ["jazzcash.com.pk"]
+  },
+  "nayapay": {
+    "name": "NayaPay",
+    "official_domains": ["nayapay.com"]
+  },
+  "sadapay": {
+    "name": "SadaPay",
+    "official_domains": ["sadapay.pk"]
+  }
+}
