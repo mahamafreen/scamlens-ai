@@ -209,7 +209,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       // Step 1: Immediate quick check (Rules + RDAP + Page Fetch)
-      const quickResp = await fetch("/api/check-quick", {
+      const quickResp = await fetch("/check-quick", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: url, product_name: productName })
@@ -231,7 +231,7 @@ document.addEventListener("DOMContentLoaded", () => {
       btnText.textContent = "Check Another Store";
 
       // Step 2: Background AI analysis via Ollama
-      fetch("/api/check-ai", {
+      fetch("/check-ai", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -319,7 +319,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Check AI status on load
-  fetch('/api/status')
+  fetch('/status')
     .then(r => r.json())
     .then(d => {
       const badge = document.getElementById('aiBadge');

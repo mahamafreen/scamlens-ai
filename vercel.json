@@ -1,7 +1,15 @@
 {
   "rewrites": [
     {
-      "source": "/api/:path*",
+      "source": "/check-quick",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/check-ai",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/status",
       "destination": "/api/index.py"
     },
     {
