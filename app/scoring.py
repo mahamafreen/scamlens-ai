@@ -244,3 +244,4 @@ def calculate_risk_score(
         "positive_signals": positive_signals,
         "audit_checks": audit_checks
     }
+

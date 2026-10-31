@@ -145,3 +145,4 @@ async def test_page_fetch_js_rendered_fallback():
 
         assert parsed["page_readable"] is False
         assert "JavaScript" in parsed["error_reason"]
+

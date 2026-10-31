@@ -303,3 +303,4 @@ def analyze_url_signals(raw_url: str, brands_data: Optional[Dict[str, Any]] = No
         "matched_brand": matched_brand,
         "signals": [s.to_dict() for s in signals],
     }
+

@@ -27,7 +27,7 @@
       </div>
       <div class="header-status" id="headerStatus">
         <span class="status-dot"></span>
-        <span class="status-text">Rules Engine Active</span>
+        <span class="status-text" id="aiBadge">AI: checking...</span>
       </div>
     </header>
 
@@ -103,6 +103,8 @@
             <button type="button" class="btn-sample" data-url="https://apple-official-store.shop/iphone" data-name="iPhone 15 Pro">Apple Lookalike (.shop)</button>
             <button type="button" class="btn-sample" data-url="https://instagram.com/p/clothing_shop_pk" data-name="Designer Kurti">Instagram Shop</button>
           </div>
+
+          <div id="errorMessage" class="error-message hidden"></div>
 
           <div class="form-actions">
             <button type="submit" id="submitBtn" class="btn-primary">
@@ -221,3 +223,4 @@
   <script src="/static/app.js"></script>
 </body>
 </html>
+

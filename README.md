@@ -23,7 +23,8 @@ Online shoppers frequently encounter sponsored ads or social media links promoti
 ### Prerequisites
 - Windows 11 (CPU-only, 16GB RAM supported)
 - Python 3.10+ installed
-- [Ollama](https://ollama.com/) (optional for AI text analysis, runs at `http://localhost:11434`)
+- [Ollama](https://ollama.com/) (optional for local AI text extraction, runs at `http://localhost:11434`)
+- **Network Note**: Page fetching and RDAP domain-age queries require active internet connectivity. Only the AI model (`qwen3.5:2b`) runs on-device locally via Ollama.
 
 ### Setup & Launch
 
@@ -32,29 +33,31 @@ Online shoppers frequently encounter sponsored ads or social media links promoti
    cd c:\Users\Elitebook\Desktop\scamlens
    ```
 
-2. **Install Dependencies**:
+2. **Install Runtime Dependencies**:
    ```powershell
    python -m pip install -r requirements.txt
    ```
+   *(Optional dev tools like Graphify can be installed via `pip install -r requirements-dev.txt`)*
 
-3. **(Optional) Start Ollama LLM**:
-   If Ollama is installed on your machine, pull the default small open-weight model:
+3. **Start Ollama LLM**:
+   Install Ollama from [ollama.com](https://ollama.com) and pull the open-weight model:
    ```powershell
    ollama pull qwen3.5:2b
    ```
-   *Note: If Ollama is offline or uninstalled, ScamLens automatically falls back to full rule-based evaluation without crashing.*
+   *Tip: You can optionally set `$env:OLLAMA_CONTEXT_LENGTH = "4096"` in PowerShell for faster CPU memory allocation.*
+   *Note: If Ollama is offline or uninstalled, ScamLens automatically falls back to full rule-based evaluation without crashing, updating the UI badge to "AI: unavailable".*
 
 4. **Run the Application**:
    ```powershell
-   python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+   python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
    ```
 
 5. **Open in Browser**:
    Visit [http://127.0.0.1:8000](http://127.0.0.1:8000)
 
-### Run Automated Tests & Evaluation
+### Run Automated Tests & Benchmark
 ```powershell
-# Run full pytest suite (27 unit and integration tests)
+# Run full pytest suite (35 unit and integration tests)
 python -m pytest -v
 
 # Run benchmark evaluation
@@ -92,8 +95,8 @@ ScamLens employs a layered defense architecture combining fast deterministic rul
       │      └── Payment flags (Cash on Delivery vs Bank Transfer Only / Crypto / Gift Cards)
       │
       ├── 4. Open-Weight LLM Extraction (Ollama @ localhost:11434)
-      │      ├── Model: qwen3.5:2b (temperature 0, max 250 tokens)
-      │      ├── Strips <think> reasoning blocks
+      │      ├── Model: qwen3.5:2b (temperature 0, max 250 tokens, thinking disabled)
+      │      ├── Strips <think> reasoning blocks, enforces 25s timeout
       │      ├── Extracts claims: product name, claimed brand, official store claims
       │      └── Cross-checks claims against registered domain
       │
@@ -117,27 +120,57 @@ We evaluated the deterministic rules on a benchmark of 10 real legitimate retail
 - **Synthetic Lookalikes Intercepted**: **10 / 10 (100.0%)** (all 10 scored High Risk, 83/100)
 - **Score Floor Enforcement**: Verified. No lookalike domain scored below Medium risk.
 
-*Note: As noted in `results.md`, this benchmark measures deterministic rule precision on synthetic cases, not real-world wild internet accuracy.*
+> **Important**: This evaluation uses 10 synthetic lookalike domains crafted by the team and 10 real retailer URLs to measure deterministic URL rule accuracy. It does not reflect an exhaustive in-the-wild internet sampling.
 
 ---
 
 ## 5. Model & License
 
-- **Default Model**: `qwen3.5:2b` (or `qwen2.5:2b` / `qwen2.5:1.5b`) served locally via Ollama.
-- **Model License**: Apache 2.0 / Qwen Community License.
-- **Privacy & Local Execution**: Prompts and scraped page snippets stay on the local machine; no external LLM API keys or cloud tokens are required.
+- **Default Model**: `qwen3.5:2b` via Ollama at `http://localhost:11434` (configurable via `MODEL` and `BASE_URL`).
+- **Model License**: Qwen series open-weight license — see the [Ollama model page](https://ollama.com/library/qwen3.5) for terms.
+- **Privacy & Execution**: The model runs on-device locally via Ollama. Page fetching and RDAP require network access to inspect the target storefront.
 
 ---
 
-## 6. Original Work vs. Third-Party Libraries
+## 6. How We Used Graphify
+
+We integrated **Graphify** (`graphifyy` 0.9.99, an open-source knowledge graph tool for codebases) as a developer inspection tool. It is kept exclusively in `requirements-dev.txt` to keep the runtime lightweight.
+
+### Commands Executed:
+```powershell
+# 1. Register tool capabilities
+graphify install
+
+# 2. Extract code knowledge graph (AST-only, no LLM required)
+graphify update .
+
+# 3. Query module relationships & call graphs
+graphify explain "app/main.py"
+graphify explain "app/scoring.py"
+graphify explain "app/url_signals.py"
+graphify path "app/main.py" "app/scoring.py"
+```
+
+### Real Findings & Code Improvements:
+1. **Module Architecture Mapping**: Graphify confirmed that `app/main.py` is the central God Node / hub connecting all 6 core submodules (`url_signals`, `rdap_client`, `page_fetcher`, `llm_analyzer`, `scoring`, `alternatives`).
+2. **Blast Radius Analysis**: Tracing dependencies of `app/scoring.py` and `app/url_signals.py` showed that changing scoring weights or lookalike detection impacts `app/main.py`, `eval.py`, `app/llm_analyzer.py`, and test suites.
+3. **Dead Code Cleanup**: Graphify flagged `app/config.py` as having zero exported symbols. Inspection revealed an unused import (`from pydantic import BaseModel`). This dead import was cleanly removed while keeping all 35 tests green.
+4. **Graph Artifacts**: The generated interactive graph view and report are saved under `graphify-out/`:
+   - [Interactive Graph View](graphify-out/graph.html) (155 KB)
+   - [Graph Summary Report](graphify-out/GRAPH_REPORT.md)
+
+---
+
+## 7. Original Work vs. Third-Party Libraries
 
 ### Third-Party Libraries & Runtimes:
-- **FastAPI** & **Starlette**: HTTP routing, file serving, and ASGI framework
+- **FastAPI** & **Starlette**: HTTP routing, static file hosting, and ASGI framework
 - **Uvicorn**: ASGI web server
-- **HTTPX**: Async HTTP client for RDAP and page fetching
-- **BeautifulSoup4**: Server-side HTML DOM parsing and text extraction
-- **OpenAI Python SDK**: Client interface for the local Ollama OpenAI-compatible endpoint
-- **Ollama**: Local open-weight model runner
+- **HTTPX**: Async HTTP client for RDAP queries and web scraping
+- **BeautifulSoup4**: HTML parsing and text extraction
+- **OpenAI Python SDK**: Client interface for local Ollama OpenAI-compatible endpoint
+- **Ollama**: Local open-weight LLM execution engine
+- **Graphifyy**: Code knowledge graph analysis (developer dependency)
 - **Pytest**: Unit testing framework
 
 ### Original Components Built from Scratch:
@@ -145,27 +178,19 @@ We evaluated the deterministic rules on a benchmark of 10 real legitimate retail
 - **Deterministic URL Signal Suite** (`app/url_signals.py`): Heuristic checks for Punycode, suspicious TLDs, IP hosts, and social seller classification.
 - **Domain Age Evaluator** (`app/rdap_client.py`): ISO-8601 registration parsing and age-tier weighting.
 - **Safe HTML Page Analyzer** (`app/page_fetcher.py`): Regex-based contact extraction, payment risk categorizer, and JS-rendering detector.
-- **LLM Extraction & Think-Block Stripper** (`app/llm_analyzer.py`): Structured JSON extraction and official store claim mismatch detection.
+- **LLM Extraction & Think-Block Stripper** (`app/llm_analyzer.py`): Structured JSON extraction with Ollama native `think:false` mode and official store claim mismatch detection.
 - **Scoring Engine with Floor Guarantees** (`app/scoring.py`): Multi-signal weighted aggregator with lookalike floor protection.
 - **Safe Comparison Link Generator** (`app/alternatives.py`): Whitelisted retailer site-search template builder.
-- **Progressive Frontend Interface** (`static/`): Dark-mode responsive UI with SVG circular gauge, live audit checklist, and asynchronous two-phase loading.
+- **Progressive Frontend Interface** (`static/`): Dark-mode responsive UI with SVG circular gauge, live audit checklist, on-page error handling, and asynchronous two-phase loading.
 
 ---
 
-## 7. Honest Limitations
+## 8. Honest Limitations
 
 1. **Warning Signs, Not Proof**: Heuristic scores highlight risk factors (e.g. recent domain, lack of address). A legitimate startup may have a new domain, while a sophisticated fraudster could hijack an older domain.
-2. **Client-Side Rendered (SPA) Storefronts**: ScamLens fetches raw server HTML without running a headless browser (for CPU speed and security). React/Vue client-only storefronts will yield "page unreadable", falling back to URL and RDAP signals.
+2. **Client-Side Rendered (SPA) Storefronts**: ScamLens fetches raw server HTML without running a headless browser (for CPU speed and security). React/Vue client-only storefronts will yield "page unreadable", falling back to URL and RDAP signals without unfair penalty.
 3. **RDAP Missing on National ccTLDs**: National registries like `.pk` do not publish public RDAP query endpoints; domain age for `.pk` is labeled "unknown" with minimal weight penalty.
-4. **Small Model Language Limitations**: The 2B parameter model is optimized for CPU inference, but is less nuanced on complex Roman Urdu idioms compared to larger parameter models.
-
----
-
-## 8. What We Learned
-
-- **Layered signals beat monolithic LLMs**: Deterministic checks (whitelists, Levenshtein distance, regexes) run in milliseconds, catch 90% of spoofing attempts, and guarantee that LLM hallucinations never compromise URL safety.
-- **Asynchronous progressive rendering**: CPU-based models can take 4–10 seconds to generate output; rendering rule-based scores immediately and streaming/updating AI insights in the background creates an instantaneous user experience.
-- **Lookalike floor rules are critical**: If a domain impersonates a known brand, missing page content must never allow the score to drop into the "Low Risk" category.
+4. **Small Model Language Limitations**: The 2B parameter model is optimized for CPU inference, but can be inconsistent and less nuanced on complex Urdu / Roman Urdu text compared to larger models.
 
 ---
 

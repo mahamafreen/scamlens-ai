@@ -64,3 +64,4 @@ def test_all_links_from_templates_and_google_site_search():
 
     # Disclaimer
     assert res["disclaimer"] == "Places to compare - not a guarantee of authenticity or stock"
+

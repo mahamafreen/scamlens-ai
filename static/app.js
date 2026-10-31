@@ -58,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
     btn.addEventListener("click", () => {
       urlInput.value = btn.dataset.url || "";
       productNameInput.value = btn.dataset.name || "";
-      form.dispatchEvent(new Event("submit"));
+      form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     });
   });
 
@@ -306,11 +306,31 @@ document.addEventListener("DOMContentLoaded", () => {
 
     } catch (err) {
       console.error(err);
-      alert("Error checking URL: " + err.message);
+      const errorDiv = document.getElementById("errorMessage");
+      if (errorDiv) {
+        errorDiv.textContent = "Error checking URL: " + err.message;
+        errorDiv.classList.remove("hidden");
+      } else {
+        alert("Error checking URL: " + err.message);
+      }
       submitBtn.disabled = false;
       btnText.textContent = "Check Store Safety";
     }
   });
+
+  // Check AI status on load
+  fetch('/api/status')
+    .then(r => r.json())
+    .then(d => {
+      const badge = document.getElementById('aiBadge');
+      if (badge) {
+        badge.textContent = (d.ollama_reachable && d.model_available) ? 'AI: ready' : 'AI: unavailable';
+      }
+    })
+    .catch(() => {
+      const badge = document.getElementById('aiBadge');
+      if (badge) badge.textContent = 'AI: unavailable';
+    });
 
   // Copy Summary to clipboard
   copySummaryBtn.addEventListener("click", () => {

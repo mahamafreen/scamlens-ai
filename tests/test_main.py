@@ -21,6 +21,16 @@ def test_health_route():
     assert "ollama_model" in data
 
 
+def test_api_status_route():
+    response = client.get("/api/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert "ollama_reachable" in data
+    assert "model_available" in data
+    assert "model" in data
+    assert "timeout_seconds" in data
+
+
 def test_api_check_quick_route():
     with patch("app.main.fetch_and_parse_page", new_callable=AsyncMock) as mock_fetch, \
          patch("app.main.check_domain_age_rdap", new_callable=AsyncMock) as mock_rdap:

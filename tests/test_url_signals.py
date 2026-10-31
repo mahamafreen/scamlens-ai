@@ -110,3 +110,4 @@ def test_social_media_shop_unverifiable_seller():
     assert res_wa["is_social_seller"] is True
     ids_wa = [s["id"] for s in res_wa["signals"]]
     assert "unverifiable_seller" in ids_wa
+

@@ -99,3 +99,4 @@ async def check_domain_age_rdap(domain: str, timeout_seconds: float = 4.0) -> Di
             "registration_date": None,
             "details": f"RDAP check failed: {str(e)}"
         }
+

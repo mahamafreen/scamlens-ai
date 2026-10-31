@@ -119,3 +119,4 @@ def test_disclaimer_present_and_no_probability_word():
     assert "disclaimer" in score_res
     assert "probability" not in score_res["disclaimer"].lower()
     assert "guarantee" in score_res["disclaimer"].lower() or "not proof" in score_res["disclaimer"].lower()
+

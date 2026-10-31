@@ -13,7 +13,8 @@ from app.config import (
     OLLAMA_MODEL,
     VISION_MODEL,
     OLLAMA_BASE_URL,
-    OLLAMA_API_KEY
+    OLLAMA_API_KEY,
+    OLLAMA_TIMEOUT
 )
 from app.url_signals import analyze_url_signals, load_brands
 from app.rdap_client import check_domain_age_rdap
@@ -71,6 +72,40 @@ async def health_check():
         "app": "ScamLens: Shop Check",
         "ollama_model": OLLAMA_MODEL,
         "vision_model_configured": bool(VISION_MODEL)
+    }
+
+
+@app.get("/api/status")
+async def api_status():
+    """Check if Ollama is reachable and configured model is installed."""
+    import httpx as _httpx
+    ollama_host = OLLAMA_BASE_URL.rstrip("/v1").rstrip("/")
+    if not ollama_host.startswith("http"):
+        ollama_host = "http://localhost:11434"
+
+    ollama_reachable = False
+    model_available = False
+
+    try:
+        async with _httpx.AsyncClient(timeout=3.0) as client:
+            resp = await client.get(f"{ollama_host}/api/tags")
+            if resp.status_code == 200:
+                ollama_reachable = True
+                tags_data = resp.json()
+                installed = [m.get("name", "") for m in tags_data.get("models", [])]
+                model_available = any(
+                    OLLAMA_MODEL in name or name.startswith(OLLAMA_MODEL.split(":")[0])
+                    for name in installed
+                )
+    except Exception:
+        pass
+
+    return {
+        "ollama_reachable": ollama_reachable,
+        "model_available": model_available,
+        "model": OLLAMA_MODEL,
+        "base_url": OLLAMA_BASE_URL,
+        "timeout_seconds": OLLAMA_TIMEOUT
     }
 
 
@@ -270,3 +305,4 @@ async def check_endpoint(
         "alternatives": alternatives,
         "ai_pending": False
     }
+

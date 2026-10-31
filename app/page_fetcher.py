@@ -234,3 +234,4 @@ async def fetch_and_parse_page(url: str, timeout_seconds: float = 8.0) -> Dict[s
         result["error_reason"] = f"HTML parsing error: {str(e)}"
 
     return result
+
