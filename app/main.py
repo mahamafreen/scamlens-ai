@@ -67,6 +67,14 @@ async def serve_index():
     return HTMLResponse("<h1>ScamLens Shop Check</h1><p>Frontend static files not loaded yet.</p>")
 
 
+@app.get("/graph", response_class=HTMLResponse)
+async def serve_graphify_graph():
+    graph_file = BASE_DIR / "graphify-out" / "graph.html"
+    if graph_file.exists():
+        return HTMLResponse(content=graph_file.read_text(encoding="utf-8"))
+    return HTMLResponse("<h1>Graphify knowledge graph not found. Run 'graphify update .' to generate it.</h1>")
+
+
 @app.get("/health")
 @app.get("/api/health")
 async def health_check():
