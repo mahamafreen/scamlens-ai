@@ -68,6 +68,7 @@ async def serve_index():
 
 
 @app.get("/health")
+@app.get("/api/health")
 async def health_check():
     return {
         "status": "healthy",
@@ -78,6 +79,7 @@ async def health_check():
 
 
 @app.get("/api/status")
+@app.get("/status")
 async def api_status():
     """Check if Ollama is reachable and configured model is installed."""
     import httpx as _httpx
@@ -112,6 +114,7 @@ async def api_status():
 
 
 @app.get("/api/brands")
+@app.get("/brands")
 async def get_brands():
     return load_brands()
 
@@ -177,6 +180,7 @@ async def execute_quick_check(
 
 
 @app.post("/api/check-quick")
+@app.post("/check-quick")
 async def api_check_quick(payload: CheckRequest):
     if not payload.url:
         raise HTTPException(status_code=400, detail="Product link is required")
@@ -184,6 +188,7 @@ async def api_check_quick(payload: CheckRequest):
 
 
 @app.post("/api/check-ai")
+@app.post("/check-ai")
 async def api_check_ai(payload: AICheckRequest):
     # Run LLM analysis on extracted page text
     llm_res = await analyze_with_llm(
@@ -217,6 +222,7 @@ async def api_check_ai(payload: AICheckRequest):
 
 
 @app.post("/check")
+@app.post("/api/check")
 async def check_endpoint(
     request: Request,
     url: Optional[str] = Form(None),
